@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# $1 - aws profile
+# $2 - token value
+
+
+### Get token serial - autogenerate
+AWS_IAM_USER=`aws --profile $1 iam get-user --output text`
+if [ $? -ne 0 ]; then 
+    exit 2;
+fi
+
+AWS_USER=`echo $AWS_IAM_USER | awk '{ print $7 }'`
+AWS_ACCOUNT_ID=`echo $AWS_IAM_USER | awk '{ print $2 }' | awk -F: '{ print $5 }'`
+
+MFA_TOKEN_SERIAL="arn:aws:iam::$AWS_ACCOUNT_ID:mfa/$AWS_USER"
+
+AWS_STS_RESULT=`aws --profile $1 sts get-session-token --output text --serial-number $MFA_TOKEN_SERIAL --token-code $2`
+
+if [ $? -ne 0 ]; then
+    exit 1;
+fi
+
+AWS_ACCESS_KEY_ID=`echo $AWS_STS_RESULT | awk '{ print $2 }'`
+AWS_SECRET_ACCESS_KEY=`echo $AWS_STS_RESULT | awk '{ print $4 }'`
+AWS_SESSION_TOKEN=`echo $AWS_STS_RESULT | awk '{ print $5 }'`
+
+export_var="export "
+
+echo "${export_var}AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+echo "${export_var}AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
+echo "${export_var}AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"
